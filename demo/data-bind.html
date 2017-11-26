@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, minimum-scale=1, initial-scale=1, user-scalable=yes">
+
+<title>web-worker demo</title>
+
+<script src="../../webcomponentsjs/webcomponents-lite.js"></script>
+
+<link rel="import" href="../../polymer/lib/elements/dom-bind.html">
+<link rel="import" href="../../iron-demo-helpers/demo-pages-shared-styles.html">
+<link rel="import" href="../../iron-demo-helpers/demo-snippet.html">
+<link rel="import" href="../web-worker.html">
+
+<custom-style>
+  <style is="custom-style" include="demo-pages-shared-styles">
+  </style>
+</custom-style>
+</head>
+
+<body>
+<div class="vertical-section-container centered">
+<h3>Basic web-worker demo</h3>
+
+Running web-worker with inline code.
+<demo-snippet>
+<template>
+
+  <!-- enable data binding outside of Polymer app -->
+  <dom-bind id="demo1">
+    <!-- html to stamp -->
+    <template>
+
+      <!--
+        create and run web-worker with the inline code.
+        listen to message event.
+      -->
+      <web-worker text-to-worker="[[msg]]" last-message="{{reply}}">
+        <script type="text/js-worker">
+          onmessage = function(e) {
+            postMessage(e.data);
+          }
+        </script>
+      </web-worker>
+
+      <!-- data-binded div to show msg from worker -->
+      <div>[[reply]]</div>
+
+      <button onclick="send('hello')">Echo 'hello'</button>
+    </template>
+  </dom-bind>
+
+  <script>
+    function send(str) {
+      document.querySelector('dom-bind#demo1').msg = str;
+    }
+  </script>
+
+</template>
+</demo-snippet>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,11 @@
+{
+  "expanded": true,
+  "plugins": {
+    "local": {
+      "disabled": true
+    },
+    "headless": {
+      "browsers": ["chrome", "firefox"]
+    }
+  }
+}

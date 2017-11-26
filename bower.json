@@ -1,0 +1,24 @@
+{
+  "name": "web-worker",
+  "description": "Polymer 2.0 element to data-bind with a web-worker or to run ad-hoc function asynchronously without blockin the UI thread.",
+  "main": "web-worker.html",
+  "dependencies": {
+    "polymer": "Polymer/polymer#^2.0.0"
+  },
+  "devDependencies": {
+    "iron-demo-helpers": "PolymerElements/iron-demo-helpers#^2.0.0",
+    "web-component-tester": "Polymer/web-component-tester#^6.0.0",
+    "webcomponentsjs": "webcomponents/webcomponentsjs#^1.0.0"
+  },
+  "resolutions": {
+    "polymer": "^2.0.0"
+  },
+  "keywords": [
+    "polymer",
+    "web-components",
+    "webworker",
+    "worker",
+    "async"
+  ],
+  "license": "MIT"
+}

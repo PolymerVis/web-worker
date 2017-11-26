@@ -1,0 +1,351 @@
+<link rel="import" href="../polymer/polymer-element.html">
+<link rel="import" href="../polymer/lib/utils/flattened-nodes-observer.html">
+
+<dom-module id="web-worker">
+  <template>
+    <style>
+      ::slotted(*) {
+        display: none;
+      }
+    </style>
+    <slot id="slot"></slot>
+  </template>
+<script>
+/**
+ * `web-worker`
+ * ## Installation
+ * ```
+ * bower install --save PolymerVis/web-worker
+ * ```
+ *
+ * ## Documentation and demos
+ * More examples and documentation can be found at `web-worker` [webcomponents page](https://www.webcomponents.org/element/PolymerVis/web-worker).
+ *
+ * ## Disclaimers
+ * PolymerVis is a personal project and is NOT in any way affliated with Polymer or Google.
+ *
+ * # `web-worker`
+ * `web-worker` is a Polymer 2.0 element to provide an easy way to data-bind with a [web worker](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Using_web_workers)-based task. Compute-intensive tasks are usually done on a web worker to prevent blocking of the UI thread.
+ *
+ * ## Quick start
+ * ### Create a web worker
+ * Creating a web worker from a URL.
+ * ```html
+ * <web-worker url="some_script.js"></web-worker>
+ * ```
+ *
+ * Creating a web worker through `script` attribute.
+ * ```html
+ * <web-worker script="postMessage('hello!');"></web-worker>
+ * ```
+ *
+ * Creating a web worker from inline code.
+ * ```html
+ * <web-worker>
+ *   <script type="text/js-worker">
+ *     postMessage('hello!');
+ *   <\/script>
+ * </web-worker>
+ * ```
+ *
+ * ### Message from web worker
+ * Data-bind to the last message/reply from the worker with the `last-message` attribute.
+ * ```html
+ * <web-worker last-message="{{reply}}">
+ *   <script type="text/js-worker">
+ *     postMessage('hello!');
+ *   <\/script>
+ * </web-worker>
+ * ```
+ *
+ * Or listen to the `message` event.
+ * ```html
+ * <web-worker on-message="onReply">
+ *   <script type="text/js-worker">
+ *     postMessage('hello!');
+ *   <\/script>
+ * </web-worker>
+ * ```
+ *
+ * ### Message to web worker
+ * You can post a message to the worker with `postMessage` function or through one of the 3 message attributes (`text-to-worker`, `object-to-worker`, or `array-to-worker`).
+ *
+ * `postMessage` function
+ * ```js
+ * var ele = document.createElement('web-worker'); // create web-worker element
+ * ele.url = 'some_script.js'; // set url to worker script
+ * ele.postMessage('hello!') // return a Promise to the next message from worker
+ *   .then(reply => console.log(reply));
+ * ```
+ *
+ * Data-binding to `text-to-worker`, `object-to-worker`, or `array-to-worker`
+ * ```html
+ * <web-worker url="some_script.js"
+ *   text-to-worker="hello"
+ *   last-message="{{reply}}"></web-worker>
+ * ```
+ *
+ * ### Running ad-hoc functions
+ * You can also run an ad-hoc function. This function must be stateless and has no external dependencies, as the function and arguments are serialized and executed in the worker context.
+ *
+ * ```js
+ * document.createElement('web-worker')  // create web-worker element
+ *   .executeFnOnce((a, b) => a + b, a, b) // serialized function and run in worker
+ *   .then(sum => alert(a + ' + ' + b + ' = ' + sum)); // return a Promise to the output
+ * ```
+ *
+ *
+ * @customElement
+ * @polymer
+ * @demo demo/index.html Basic demo
+ * @demo demo/data-bind.html Data-binding demo
+ */
+class WebWorker extends Polymer.Element {
+  static get is() {
+    return 'web-worker';
+  }
+  static get properties() {
+    return {
+      /**
+       * URL to the web-worker script.
+       * @type {String}
+       */
+      url: {
+        type: String
+      },
+      /**
+       * Text content of the script for the web-worker. Will be converted to
+       * `object-url` to create a web worker.
+       * @type {String}
+       */
+      script: {
+        type: String,
+        notify: true
+      },
+      /**
+       * Object URL for the web-worker script.
+       * @type {String}
+       */
+      objectUrl: {
+        type: String,
+        notify: true
+      },
+      /**
+       * Reference to the web-worker.
+       * @type {window.Worker}
+       */
+      worker: {
+        type: Object,
+        notify: true,
+        readOnly: true
+      },
+      /**
+       * Message to send to the worker. Will trigger `postMessage` function.
+       * @type {String}
+       */
+      textToWorker: {
+        type: String
+      },
+      /**
+       * Message to send to the worker. Will trigger `postMessage` function.
+       * @type {Object}
+       */
+      objectToWorker: {
+        type: Object
+      },
+      /**
+       * Message to send to the worker. Will trigger `postMessage` function.
+       * @type {Array}
+       */
+      arrayToWorker: {
+        type: Array
+      },
+      /**
+       * Last message from the worker.
+       * @type {{data: Any}}
+       */
+      lastMessage: {
+        type: Object,
+        notify: true,
+        readOnly: true
+      },
+      /**
+       * A promise to the latest postMessage's reply.
+       * @type {Promise}
+       */
+      replied: {
+        type: Object,
+        notify: true,
+        readOnly: true,
+        value: null
+      },
+      /**
+       * Most recent error message
+       * @type {String}
+       */
+      lastError: {
+        type: String,
+        notify: true,
+        readOnly: true,
+        reflectToAttribute: true
+      },
+      /**
+       * @type {MutationObserver}
+       */
+      _observer: Object
+    };
+  }
+
+  static get observers() {
+    return [
+      '_getObjectUrl(script)',
+      '_createWebWorker(url,objectUrl)',
+      'postMessage(textToWorker,null,worker)',
+      'postMessage(objectToWorker,null,worker)',
+      'postMessage(arrayToWorker,null,worker)'
+    ];
+  }
+
+  ready() {
+    super.ready();
+    if (!window.Worker) {
+      return console.warn('Your browser do not support webworker!');
+    }
+    this._getInlineScript();
+  }
+
+  connectedCallback() {
+    super.connectedCallback();
+    this._observer = new Polymer.FlattenedNodesObserver(
+      this.$.slot,
+      this._getInlineScript.bind(this)
+    );
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    if (this._observer) this._observer.disconnect();
+    if (this.worker) this.worker.terminate();
+  }
+
+  _getObjectUrl(script) {
+    this.objectUrl = URL.createObjectURL(
+      new Blob([script], {type: 'text/javascript'})
+    );
+  }
+
+  _getInlineScript() {
+    var nodes = this.shadowRoot
+      .querySelector('slot')
+      .assignedNodes({flatten: true});
+
+    if (!nodes || nodes.length === 0) return;
+
+    var textArray = Array.prototype.map.call(nodes, n => n.textContent);
+    this.script = textArray.join('\n');
+  }
+
+  _createWebWorker() {
+    if (!window.Worker) {
+      this._onError('web worker not supported in your browser!');
+      return;
+    }
+    var url = this.url ? this.url : this.objectUrl;
+    if (!url) return;
+    try {
+      var worker = new Worker(url);
+    } catch (error) {
+      this._onError(error);
+      return;
+    }
+    var onerror = this._onError.bind(this);
+    worker.onmessage = this._onMessage.bind(this);
+    worker.onerror = onerror;
+    worker.onmessageerror = onerror;
+    this._setWorker(worker);
+  }
+
+  _onError(e) {
+    if (!e) return;
+    this._setLastError(e.toString());
+    this.dispatchEvent(new CustomEvent('error', {detail: e}));
+  }
+
+  _onMessage(e) {
+    if (!e) return;
+    this._setLastMessage(e.data);
+    this.dispatchEvent(new CustomEvent('message', {detail: e.data}));
+    if (this._resolve) {
+      this._resolve(e.data);
+      this._resolve = null;
+    }
+  }
+
+  _callFnInWorker(fn, ...args) {
+    var blob = new Blob(
+      [
+        `postMessage((${fn.toString()}).apply(this,${JSON.stringify(
+          args
+        )})); close();`
+      ],
+      {
+        type: 'application/javascript'
+      }
+    );
+    return URL.createObjectURL(blob);
+  }
+
+  /**
+   * Create a web-worker and execute the provided function `fn` with the `args`.
+   * Both the function and arguments are serialized into ObjectURL to be executed
+   * in the worker thread.The worker is terminated when the result is send back
+   * to the main thread.
+   * ```js
+   *       document.createElement('web-worker')
+   *         .executeFnOnce((a, b) => a + b, a, b)
+   *         .then(sum => alert(`${a} + ${b} = ${sum}`));
+   * ```
+   * @param {Function} fn function to be execute in the worker thread.
+   * @param {Any} args arguments to be provided to the function.
+   * @return {Promise}
+   */
+  executeFnOnce(fn, ...args) {
+    return new Promise((resolve, reject) => {
+      let worker = new Worker(this._callFnInWorker(fn, ...args));
+      worker.onerror = e => reject(e);
+      worker.onmessage = ({data}) => {
+        resolve(data);
+        worker.terminate();
+      };
+    });
+  }
+
+  /**
+   * Terminate the worker thread. The thread is killed immediately without an
+   * opportunity to complete its operations or clean up after itself.
+   * @return {WebWorker}
+   */
+  terminate() {
+    if (this.worker) this.worker.terminate();
+    return this;
+  }
+
+  /**
+   * Post a message to the worker.
+   * @param {Any} msg Message to send over.
+   * @param {Array=} transferables See [Transferable-Objects-Lightning-Fast](https://developers.google.com/web/updates/2011/12/Transferable-Objects-Lightning-Fast)
+   * @return {WebWorker}
+   */
+  postMessage(msg, transferables) {
+    if (msg && this.worker) this.worker.postMessage(msg, transferables);
+    var promise = new Promise(resolve => {
+      this._resolve = resolve;
+    });
+    this._setReplied(promise);
+    return promise;
+  }
+}
+
+window.customElements.define(WebWorker.is, WebWorker);
+</script>
+</dom-module>

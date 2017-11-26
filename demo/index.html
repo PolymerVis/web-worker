@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, minimum-scale=1, initial-scale=1, user-scalable=yes">
+
+<title>web-worker demo</title>
+
+<script src="../../webcomponentsjs/webcomponents-lite.js"></script>
+
+<link rel="import" href="../../polymer/lib/elements/dom-bind.html">
+<link rel="import" href="../../iron-demo-helpers/demo-pages-shared-styles.html">
+<link rel="import" href="../../iron-demo-helpers/demo-snippet.html">
+<link rel="import" href="../web-worker.html">
+
+<custom-style>
+  <style is="custom-style" include="demo-pages-shared-styles">
+  </style>
+</custom-style>
+</head>
+
+<body>
+<div class="vertical-section-container centered">
+<h3>Basic web-worker demo</h3>
+
+Running web-worker from url.
+<demo-snippet>
+<template>
+
+  <!-- enable data binding outside of Polymer app -->
+  <dom-bind>
+    <!-- html to stamp -->
+    <template>
+
+      <!--
+        create and run web-worker from URL to the script.
+        data-bind to message via `last-message`
+      -->
+      <web-worker url="webworker.js" last-message="{{msg}}"></web-worker>
+
+      <!-- data-binded div to show msg from worker -->
+      <div>[[msg]]</div>
+
+    </template>
+  </dom-bind>
+
+</template>
+</demo-snippet>
+
+Running web-worker with inline code.
+<demo-snippet>
+<template>
+
+  <!-- enable data binding outside of Polymer app -->
+  <dom-bind id="demo1">
+    <!-- html to stamp -->
+    <template>
+
+      <!--
+        create and run web-worker with the inline code.
+        listen to message event.
+      -->
+      <web-worker on-message="onMessage">
+        <script type="text/js-worker">
+          postMessage('hello from inline code!');
+        </script>
+      </web-worker>
+
+      <!-- data-binded div to show msg from worker -->
+      <div>[[msg]]</div>
+    </template>
+  </dom-bind>
+
+  <script>
+    var demo1 = document.querySelector('dom-bind#demo1');
+    demo1.onMessage = function(e, msg) {
+      demo1.msg = msg;
+    };
+  </script>
+
+</template>
+</demo-snippet>
+
+
+Running web-worker as a once-off job in a separate thread.
+<demo-snippet>
+<template>
+  <web-worker id="sum">
+    <script type="text/js-worker">
+      onmessage = function(e) {
+        var {a, b} = e.data;
+        postMessage(a + b);
+      };
+    </script>
+  </web-worker>
+  <button onclick="javascript:run1(1,2)">Calculate 1 + 2</button>
+  <script>
+    function run1(a, b) {
+      document.querySelector('#sum')
+        .postMessage({a, b})
+        .then(sum => alert(`${a} + ${b} = ${sum}`));
+    }
+  </script>
+
+</template>
+</demo-snippet>
+
+Running web-worker as a once-off job in a separate thread.
+<demo-snippet>
+<template>
+  <button onclick="javascript:run2(1,2)">Calculate 1 + 2</button>
+  <button onclick="javascript:run2(2,2)">Calculate 2 + 2</button>
+  <script>
+    function run2(a, b) {
+      document.createElement('web-worker')
+        .executeFnOnce((a, b) => a + b, a, b)
+        .then(sum => alert(`${a} + ${b} = ${sum}`));
+    }
+  </script>
+
+</template>
+</demo-snippet>
+
+
+
+</div>
+</body>
+</html>

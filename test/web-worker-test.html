@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, minimum-scale=1, initial-scale=1, user-scalable=yes">
+
+    <title>web-worker test</title>
+
+    <script src="../../webcomponentsjs/webcomponents-lite.js"></script>
+    <script src="../../web-component-tester/browser.js"></script>
+
+    <link rel="import" href="../web-worker.html">
+  </head>
+  <body>
+
+    <test-fixture id="BasicFixture">
+      <template>
+        <web-worker url="echo.js"></web-worker>
+      </template>
+    </test-fixture>
+
+    <test-fixture id="InlineFixture">
+      <template>
+        <web-worker>
+          <script type="text/js-worker">
+          onmessage = ({data}) => postMessage(data);
+</script>
+        </web-worker>
+      </template>
+    </test-fixture>
+
+<script>
+suite('web-worker', () => {
+  var server;
+
+  setup(function() {
+    server = sinon.fakeServer.create();
+    server.respondWith('GET', 'echo.js', [
+      200,
+      {'Content-Type': 'text/javascript'},
+      'onmessage = ({data}) => postMessage(data);'
+    ]);
+  });
+
+  teardown(function() {
+    server.restore();
+  });
+
+  test('Loading from url', done => {
+    // Create a test fixture
+    const element = fixture('BasicFixture');
+    assert.equal(element.url, 'echo.js', 'URL should be the same');
+    assert.isUndefined(element.lastError, 'last-error should be undefined');
+    element.postMessage('hello').then(reply => {
+      try {
+        assert.equal(
+          element.lastMessage,
+          'hello',
+          'last-message should echo postMessage'
+        );
+        assert.equal(reply, 'hello', 'response should echo postMessage');
+      } catch (err) {
+        done(err);
+      }
+      done();
+    });
+  });
+
+  test('Loading from inline code', done => {
+    // Create a test fixture
+    const element = fixture('InlineFixture');
+    assert.isDefined(element.script, 'script should be defined');
+    assert.isUndefined(element.lastError, 'last-error should be undefined');
+
+    element.postMessage('hello').then(reply => {
+      try {
+        assert.equal(
+          element.lastMessage,
+          'hello',
+          'last-message should echo postMessage'
+        );
+        assert.equal(reply, 'hello', 'response should echo postMessage');
+      } catch (error) {
+        done(error);
+      }
+      done();
+    });
+  });
+
+  test('postMessage with text-to-worker', done => {
+    // Create a test fixture
+    const element = fixture('BasicFixture');
+    element.textToWorker = 'hello';
+    assert.isUndefined(element.lastError, 'last-error should be undefined');
+    assert.isDefined(element.replied, 'replied should be a promise');
+
+    element.replied.then(reply => {
+      try {
+        assert.equal(
+          element.lastMessage,
+          'hello',
+          'last-message should echo postMessage'
+        );
+        assert.equal(reply, 'hello', 'response should echo postMessage');
+      } catch (error) {
+        done(error);
+      }
+      done();
+    });
+  });
+
+  test('postMessage with object-to-worker', done => {
+    // Create a test fixture
+    const element = fixture('BasicFixture');
+    element.objectToWorker = {msg: 'hello'};
+    assert.isUndefined(element.lastError, 'last-error should be undefined');
+    assert.isDefined(element.replied, 'replied should be a promise');
+
+    element.replied.then(reply => {
+      try {
+        assert.deepEqual(
+          element.lastMessage,
+          element.objectToWorker,
+          'last-message should echo postMessage'
+        );
+        assert.deepEqual(
+          reply,
+          element.objectToWorker,
+          'response should echo postMessage'
+        );
+      } catch (error) {
+        done(error);
+      }
+      done();
+    });
+  });
+
+  test('postMessage with array-to-worker', done => {
+    // Create a test fixture
+    const element = fixture('BasicFixture');
+    element.arrayToWorker = ['hello1', 'hello2'];
+    assert.isUndefined(element.lastError, 'last-error should be undefined');
+    assert.isDefined(element.replied, 'replied should be a promise');
+
+    element.replied.then(reply => {
+      try {
+        assert.deepEqual(
+          element.lastMessage,
+          element.arrayToWorker,
+          'last-message should echo postMessage'
+        );
+        assert.deepEqual(
+          reply,
+          element.arrayToWorker,
+          'response should echo postMessage'
+        );
+      } catch (error) {
+        done(error);
+      }
+      done();
+    });
+  });
+
+  test('run ad-hoc function', done => {
+    // Create a test fixture
+    const element = document.createElement('web-worker');
+    element
+      .executeFnOnce((a, b) => a + b, 1, 2)
+      .then(results => {
+        assert.equal(results, 3, '1 + 2 = 3');
+        done();
+      })
+      .catch(err => done(err));
+  });
+});
+</script>
+
+  </body>
+</html>
