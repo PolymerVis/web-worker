@@ -110,12 +110,21 @@ Data-binding to `text-to-worker`, `object-to-worker`, or `array-to-worker`
 ```
 
 ### Running ad-hoc functions
-You can also run an ad-hoc function. This function must be stateless and has no external dependencies, as the function and arguments are serialized and executed in the worker context.
+You can wrap a function and execute it in a once-off web worker with `executeFnOnce`. This function must be stateless and has no external dependencies, as the function and arguments are serialized and executed in the worker context.
+
 
 ```js
 document.createElement('web-worker')  // create web-worker element
   .executeFnOnce((a, b) => a + b, a, b) // serialized function and run in worker
   .then(sum => alert(a + ' + ' + b + ' = ' + sum)); // return a Promise to the output
+```
+
+### Running ad-hoc jobs
+You can execute once-off web workers with `executeUrlOnce`.
+```js
+     document.createElement('web-worker')
+       .executeUrlOnce('echo.js', 'hello')
+       .then(msg => console.log('msg'));
 ```
 
 ## Development

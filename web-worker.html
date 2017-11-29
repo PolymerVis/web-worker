@@ -86,14 +86,21 @@
  * ```
  *
  * ### Running ad-hoc functions
- * You can also run an ad-hoc function. This function must be stateless and has no external dependencies, as the function and arguments are serialized and executed in the worker context.
+ * You can also wrap a function and execute it in a once-off web worker with `executeFnOnce`. This function must be stateless and has no external dependencies, as the function and arguments are serialized and executed in the worker context.
  *
  * ```js
  * document.createElement('web-worker')  // create web-worker element
- *   .executeFnOnce((a, b) => a + b, a, b) // serialized function and run in worker
- *   .then(sum => alert(a + ' + ' + b + ' = ' + sum)); // return a Promise to the output
+ *   .executeFnOnce((a, b) => a + b, 1, 2) // serialized function and run in worker
+ *   .then(sum => alert('1 + 2 = ' + sum)); // return a Promise to the output
  * ```
  *
+ * ### Running ad-hoc jobs
+ * You can execute once-off web workers with `executeUrlOnce`.
+ * ```js
+ *       document.createElement('web-worker')
+ *         .executeUrlOnce('echo.js', 'hello')
+ *         .then(msg => console.log('msg'));
+ * ```
  *
  * @customElement
  * @polymer
@@ -111,7 +118,8 @@ class WebWorker extends Polymer.Element {
        * @type {String}
        */
       url: {
-        type: String
+        type: String,
+        value: null
       },
       /**
        * Text content of the script for the web-worker. Will be converted to
@@ -120,7 +128,8 @@ class WebWorker extends Polymer.Element {
        */
       script: {
         type: String,
-        notify: true
+        notify: true,
+        value: null
       },
       /**
        * Object URL for the web-worker script.
@@ -128,7 +137,8 @@ class WebWorker extends Polymer.Element {
        */
       objectUrl: {
         type: String,
-        notify: true
+        notify: true,
+        value: null
       },
       /**
        * Reference to the web-worker.
@@ -137,7 +147,8 @@ class WebWorker extends Polymer.Element {
       worker: {
         type: Object,
         notify: true,
-        readOnly: true
+        readOnly: true,
+        computed: '_createWebWorker(url,objectUrl)'
       },
       /**
        * Message to send to the worker. Will trigger `postMessage` function.
@@ -199,7 +210,6 @@ class WebWorker extends Polymer.Element {
   static get observers() {
     return [
       '_getObjectUrl(script)',
-      '_createWebWorker(url,objectUrl)',
       'postMessage(textToWorker,null,worker)',
       'postMessage(objectToWorker,null,worker)',
       'postMessage(arrayToWorker,null,worker)'
@@ -245,15 +255,15 @@ class WebWorker extends Polymer.Element {
     this.script = textArray.join('\n');
   }
 
-  _createWebWorker() {
+  _createWebWorker(url, objectUrl) {
     if (!window.Worker) {
       this._onError('web worker not supported in your browser!');
       return;
     }
-    var url = this.url ? this.url : this.objectUrl;
-    if (!url) return;
+    var _url_ = url && url.length > 0 ? url : objectUrl;
+    if (!_url_) return;
     try {
-      var worker = new Worker(url);
+      var worker = new Worker(_url_);
     } catch (error) {
       this._onError(error);
       return;
@@ -262,7 +272,7 @@ class WebWorker extends Polymer.Element {
     worker.onmessage = this._onMessage.bind(this);
     worker.onerror = onerror;
     worker.onmessageerror = onerror;
-    this._setWorker(worker);
+    return worker;
   }
 
   _onError(e) {
@@ -293,6 +303,32 @@ class WebWorker extends Polymer.Element {
       }
     );
     return URL.createObjectURL(blob);
+  }
+
+  /**
+   * Create a web-worker using the script provided by the `url`, and post the
+   * provided `msg` and `transferables` (optional). Expects a reply from the
+   * worker. Return a `Promise` to the reply from the worker.
+   * ```js
+   *       document.createElement('web-worker')
+   *         .executeUrlOnce('echo.js', 'hello')
+   *         .then(msg => console.log('msg'));
+   * ```
+   * @param {String} url Url to the script to be executed.
+   * @param {Any} msg Message to the worker.
+   * @param {Transferables=} transferables Objects to transfer ownership (see Transferables).
+   * @return {Promise}
+   */
+  executeUrlOnce(url, msg, transferables) {
+    return new Promise((resolve, reject) => {
+      let worker = new Worker(url);
+      worker.onerror = e => reject(e);
+      worker.onmessage = ({data}) => {
+        resolve(data);
+        worker.terminate();
+      };
+      worker.postMessage(msg, transferables);
+    });
   }
 
   /**

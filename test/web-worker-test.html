@@ -161,6 +161,18 @@ suite('web-worker', () => {
     });
   });
 
+  test('run ad-hoc web worker', done => {
+    // Create a test fixture
+    document
+      .createElement('web-worker')
+      .executeUrlOnce('echo.js', 'hello')
+      .then(results => {
+        assert.equal(results, 'hello', 'should echo "hello"');
+        done();
+      })
+      .catch(err => done(err));
+  });
+
   test('run ad-hoc function', done => {
     // Create a test fixture
     const element = document.createElement('web-worker');
