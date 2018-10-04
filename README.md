@@ -2,7 +2,7 @@ web-worker
 [![GitHub release](https://img.shields.io/github/release/PolymerVis/web-worker.svg)](https://github.com/PolymerVis/web-worker/releases)
 [![Build Status](https://travis-ci.org/PolymerVis/web-worker.svg?branch=master)](https://travis-ci.org/PolymerVis/web-worker)
 [![Published on webcomponents.org](https://img.shields.io/badge/webcomponents.org-published-blue.svg)](https://www.webcomponents.org/element/PolymerVis/web-worker)
-[![styled with prettier](https://img.shields.io/badge/styled_with-prettier-ff69b4.svg)](https://github.com/prettier/prettier)
+[![styled with prettier](https://img.shields.io/badge/styled_with-prettier-ff69b4.svg)](https://github.com/prettier/prettier) [![Greenkeeper badge](https://badges.greenkeeper.io/PolymerVis/web-worker.svg)](https://greenkeeper.io/)
 ==========
 
 <!---
